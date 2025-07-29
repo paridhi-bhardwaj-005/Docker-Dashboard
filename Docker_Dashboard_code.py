@@ -101,7 +101,9 @@ operation = st.selectbox("Select Docker Operation", [
 
 st.markdown("---")
 
+# -------------------------------
 # Operation Logic
+# -------------------------------
 if operation == "Pull image from Docker Hub":
     st.subheader("🔧 Pull Docker Image")
     image_to_pull = st.text_input("Docker Image to Pull", value="nginx")
@@ -128,6 +130,17 @@ elif operation == "Launch a new container":
         launch_submit = st.form_submit_button("Launch")
 
         if launch_submit:
+            # Unmount /RHEL9-ISO before launching container
+            unmount_result = run_command(["sudo", "umount", "-l", "/RHEL9-ISO"])
+            if unmount_result and unmount_result.returncode == 0:
+                st.info("Unmounted /RHEL9-ISO successfully.")
+            elif unmount_result and "not mounted" in unmount_result.stderr.lower():
+                st.info("/RHEL9-ISO was not mounted.")
+            elif unmount_result:
+                st.warning("Unmounting /RHEL9-ISO failed:")
+                st.code(unmount_result.stderr)
+
+            # Build Docker run command
             cmd = ["docker", "run"]
             if detached_mode:
                 cmd.append("-d")
@@ -136,13 +149,19 @@ elif operation == "Launch a new container":
             if port_map:
                 cmd += ["-p", port_map]
             cmd.append(container_image)
+
+            # Show full Docker command
+            st.markdown("**Running Command:**")
+            st.code(" ".join(cmd), language="bash")
+
             result = run_command(cmd)
             if result:
                 if result.returncode == 0:
-                    st.success(f"Container launched successfully!\n\n```\n{result.stdout}```")
+                    st.success("Container launched successfully!")
+                    st.code(result.stdout)
                 else:
-                    st.error(f"Launch failed:\n\n```\n{result.stderr}```")
-                    
+                    st.error("Launch failed.")
+                    st.code(result.stderr)
 
 elif operation == "List running containers":
     st.subheader("Running Containers")
